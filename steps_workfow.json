@@ -1,0 +1,214 @@
+{
+  "name": "CSV Analysis and Chart AI Report",
+  "nodes": [
+    {
+      "parameters": {
+        "fields": [
+          {"name": "email", "type": "string", "required": true},
+          {"name": "context", "type": "string", "required": true},
+          {"name": "datafile", "type": "file", "required": true, "allowedFileTypes": ".csv"}
+        ]
+      },
+      "name": "Form Trigger",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "filePropertyName": "datafile"
+      },
+      "name": "Extract File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Summarize fields, update as per CSV\nconst rows = items.map(i => i.json);\nconst totalRevenue = rows.reduce((acc, x) => acc + Number(x.amount || 0), 0);\nreturn [{ json: { totalRevenue, rowCount: rows.length, rows } }];"
+      },
+      "name": "Summarize Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "mode": "mergeInputs"
+      },
+      "name": "Aggregate Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "prompt": "Analyze the provided dataset and context: {{$json.rows}}, context: {{$json.context}}. Provide summary insights."
+      },
+      "name": "Generate AI Insights",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "prompt": "Prepare JSON config for a bar chart with QuickChart. X: Category, Y: totalRevenue by Category, blue theme, based on: {{$json.rows}}"
+      },
+      "name": "Prepare Chart Data",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Pass QuickChart JSON as-is\nreturn items;"
+      },
+      "name": "Format Chart Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://quickchart.io/chart/create",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{$json}}"
+      },
+      "name": "Create Chart",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1600, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Combine chart URL and insights\nreturn [{json: {chartUrl: $json.url, insights: $node[\"Generate AI Insights\"].json.text, email: $node[\"Form Trigger\"].json.email}}];"
+      },
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1800, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "youremail@example.com",
+        "toEmail": "={{$json.email}}",
+        "subject": "AI-Generated CSV Insights & Chart",
+        "text": "Hi,\n\nHere are your insights:\n{{ $json.insights }}\n\nDownload chart: {{ $json.chartUrl }}\n\n– Automated report"
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [2000, 200]
+    }
+  ],
+  "connections": {
+    "Form Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract File": {
+      "main": [
+        [
+          {
+            "node": "Summarize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Data": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Data": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Insights",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Chart Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Insights": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Chart Data": {
+      "main": [
+        [
+          {
+            "node": "Format Chart Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Chart Data": {
+      "main": [
+        [
+          {
+            "node": "Create Chart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Chart": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

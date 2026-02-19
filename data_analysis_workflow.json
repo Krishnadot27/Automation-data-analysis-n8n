@@ -1,0 +1,481 @@
+{
+  "name": "DataAnalysisFinal",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "f9570c67-e16e-4353-b241-0d0c8a8fda7a",
+        "formTitle": "Data Analysis Using N8N",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Email Address",
+              "fieldType": "email",
+              "placeholder": "abc@domain.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Content",
+              "placeholder": "Your Prompt for analysis",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "File",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "formSubmittedText": "Your response has been recorded"
+        }
+      },
+      "name": "Form Trigger",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 1,
+      "position": [
+        -16,
+        240
+      ],
+      "id": "ab6d42c0-00a0-4baa-8f4b-adf8adeb4935",
+      "webhookId": "f9570c67-e16e-4353-b241-0d0c8a8fda7a"
+    },
+    {
+      "parameters": {
+        "binaryPropertyName": "File",
+        "options": {}
+      },
+      "name": "Extract File",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        208,
+        160
+      ],
+      "id": "6eccfefa-6a8c-4604-ac63-7bc7d15e1ce0"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analysis code for products-100.csv\nconst items = $input.all();\n\n// Initialize aggregators\nconst brandRevenue = {};\nconst categoryRevenue = {};\nconst availabilityCount = {};\nlet totalRevenue = 0;\nlet totalRecords = 0;\nlet totalStock = 0;\n\n// Process rows\nitems.forEach(item => {\n    const row = item.json;\n    const price = parseFloat(row.Price) || 0;\n    const stock = parseInt(row.Stock) || 0;\n    const revenue = price * stock;\n\n    // Sum by brand\n    if (!brandRevenue[row.Brand]) {\n        brandRevenue[row.Brand] = 0;\n    }\n    brandRevenue[row.Brand] += revenue;\n\n    // Sum by category\n    if (!categoryRevenue[row.Category]) {\n        categoryRevenue[row.Category] = 0;\n    }\n    categoryRevenue[row.Category] += revenue;\n\n    // Count availability status\n    if (!availabilityCount[row.Availability]) {\n        availabilityCount[row.Availability] = 0;\n    }\n    availabilityCount[row.Availability]++;\n\n    totalRevenue += revenue;\n    totalStock += stock;\n    totalRecords++;\n});\n\n// Find top brand\nconst topBrand = Object.entries(brandRevenue)\n    .sort((a, b) => b[1] - a[1])[0];\n\n// Find top category\nconst topCategory = Object.entries(categoryRevenue)\n    .sort((a, b) => b[1] - a[1])[0];\n\n// Create summary\nconst summary = {\n    totalRevenue: totalRevenue.toFixed(2),\n    totalRecords: totalRecords,\n    totalStock: totalStock,\n    averagePrice: (totalRevenue / totalStock).toFixed(2),\n    topBrand: {\n        name: topBrand[0],\n        revenue: topBrand[1].toFixed(2),\n        percentage: ((topBrand[1] / totalRevenue) * 100).toFixed(1)\n    },\n    topCategory: {\n        name: topCategory[0],\n        revenue: topCategory[1].toFixed(2),\n        percentage: ((topCategory[1] / totalRevenue) * 100).toFixed(1)\n    },\n    availabilityBreakdown: availabilityCount,\n    brandBreakdown: brandRevenue,\n    categoryBreakdown: categoryRevenue,\n    uniqueBrands: Object.keys(brandRevenue).length,\n    uniqueCategories: Object.keys(categoryRevenue).length\n};\n\n// Return results\nreturn summary;\n"
+      },
+      "name": "Summarize Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        432,
+        160
+      ],
+      "id": "07c8d998-93cb-40d9-a3dc-820949c3a1d6"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        656,
+        160
+      ],
+      "id": "2abb915a-923c-424f-b9d4-4750ad39367b",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.data[0] }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a highly skilled executive insights assistant. Your role is to analyse structured data and produce clear, impactful, and insightful summaries suitable for senior leadership. Focus on identifying key patterns, trends, anomalies, comparisons, and notable highlights across any combination of quantitative or categorical data provided.\nUser Request: {{ $('Form Trigger').item.json.Content }}\n\nAlways: \n- Prioritise business relevance and strategic implications. \n- Translate data into plain English with meaningful interpretations. \n- Identify top contributors, outliers, or segments that drive performance. \n- Highlight differences or imbalances across groups (e.g. regions, demographics, categories). \n- Reference percentages, totals, or averages only when they reinforce a key insight. \n- Be concise, avoid repetition, and use a professional tone. \n- Output your final answer as plain text, without any markdown formatting such as asterisks, hashes, backticks, or special symbols. \nDo not:\n- Repeat the raw data. \n- Use overly technical or statistical language. \n\nInclude disclaimers or apologise for uncertainty present insights with confidence. - Use markdown formatting of any kind. Your output will be used in decision-making meetings and inserted directly into an email. It must be clean, professional, and ready to read with no further formatting needed."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1104,
+        240
+      ],
+      "id": "f1d918e1-c5e1-44f0-b2b3-5180d93983f2",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1184,
+        464
+      ],
+      "id": "0362d266-6835-458c-a44c-59e595908a47",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "Lt0kUtgRWuXcV7ZK",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        880,
+        240
+      ],
+      "id": "8ff0164a-9906-4114-ad46-35567ed086e5",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Exec Summary:  {{ $json.text }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a data visualisation assistant. Your task is to analyse structured data and generate one or more QuickChart.io-compatible chart configurations in valid JSON. The goal is to create a minimal, insightful set of charts suitable for executive-level reporting.\n\nOnly return valid chart configurations as a JSON array. Do not include Markdown, backticks, or explanations — just the JSON.\n\nRequirements:\n\n1. Clarity & Focus\n\n  Each chart must focus on a single topic or key business metric (e.g. revenue by city, purchase share by category).\n  \n  Do not mix unrelated metrics in the same chart.\n\n2. Chart Variety\n\n  Use a variety of chart types to improve visual distinction.\n  \n  Prefer bar or line charts for comparisons across segments or time.\n  \n  Use pie or doughnut sparingly — only when a proportional view of a whole is clearly the best option.\n  \n  Avoid generating multiple pie charts unless truly necessary.\n\n3. Colour Palette\n\n  Use a blue-dominant colour palette.\n  \n  Avoid using red, unless it is critical to highlight negative or risk-based data.\n  \n  Use soft blues, teals, and complementary cool tones instead.\n\n4. Chart Limits\n\n  Respect chart count efficiency. Generate the fewest number of charts that still provide complete insights.\n  \n  Do not generate more than 3 charts unless the data justifies it.\n\n5. Structure\n\n  Each chart must include:\n  \n  'type': one of 'bar', 'line', 'pie', or 'doughnut'\n  \n  'data': with 'labels', 'datasets' (including 'label', 'data', and 'backgroundColor')\n  \n  'options': must include 'title.text' and 'legend.position' if appropriate\n\nEnsure each chart configuration is complete, valid, and ready for POSTing to https://quickchart.io/chart\n."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1456,
+        240
+      ],
+      "id": "b9f54d45-5971-418c-9ec8-f788c7b055e1",
+      "name": "Prep Visualisation Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.item.json.text;\n\nlet parsed;\ntry {\n    parsed = JSON.parse(raw);\n} catch (err) {\n    throw new Error(\"Failed to parse QuickChart config: \" + err.message);\n}\n\nfunction getTitle(chart, index) {\n    const title = chart.options?.title?.text || \"Untitled\";\n    return `Chart ${index + 1}: ${title}`;\n}\n\nif (Array.isArray(parsed)) {\n    return parsed.map((chart, index) => ({\n        chartConfig: chart,\n        chartTitle: getTitle(chart, index)\n    }));\n}\n\nreturn {\n    chartConfig: parsed,\n    chartTitle: getTitle(parsed, 0)\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        240
+      ],
+      "id": "71f2d44a-659b-4d86-986c-fda6d54eeb91",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "batchSize": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2016,
+        240
+      ],
+      "id": "3df0708a-98d5-4434-96da-9c5f1d8eaa63",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://quickchart.io/chart/create",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chart",
+              "value": "={{ JSON.stringify($json.chartConfig) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2224,
+        336
+      ],
+      "id": "d4eb8a09-77b9-4ea9-8fb9-ecad6f6d31f6",
+      "name": "Generate Chart"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "url"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2224,
+        144
+      ],
+      "id": "05887605-9827-4934-a40e-41855f6a9b72",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2432,
+        144
+      ],
+      "id": "82ca5dec-c8f4-4dc5-bdd5-07a5fb093798",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Merge1').item.json['Email Address'] }}",
+        "subject": "Hey Your analysis is done check it out...",
+        "emailType": "text",
+        "message": "=Hii your data summary is ready,\n\n{{ $('Basic LLM Chain').item.json.text }}\n\nCharts Links:\n{{ $json.chartList }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2848,
+        144
+      ],
+      "id": "968d6583-7f24-4646-af4f-fde06a207b0d",
+      "name": "Send a message",
+      "webhookId": "80654c6b-ba03-4269-929a-451574f70802",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "8xXDPqVcufa0uLaj",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\n\nif (!item.url || !Array.isArray(item.url)) {\n    throw new Error(\"Missing or invalid 'url' array in input.\");\n}\n\nconst numberedList = item.url\n    .map((link, index) => `${index + 1}. Chart ${index + 1}: ${link}`)\n    .join('\\n');\n\nreturn {\n    json: {\n        chartList: numberedList\n    }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        144
+      ],
+      "id": "abff0482-b770-4ded-8ae5-4ed6a513370d",
+      "name": "Code1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Form Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract File": {
+      "main": [
+        [
+          {
+            "node": "Summarize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Data": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Prep Visualisation Data",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Prep Visualisation Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prep Visualisation Data": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Chart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Chart": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b60d2707-7b89-4799-aee6-bb244e2643d5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e967f7580e1e85b1d8727a4878f380469a8c6107ac75e8d036d5276281ada865"
+  },
+  "id": "HmV2yJSXOr97taew",
+  "tags": []
+}
