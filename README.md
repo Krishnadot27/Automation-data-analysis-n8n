@@ -22,12 +22,12 @@ and emails the full report to the user.
 2. Add credentials: Google Gemini API key, Gmail OAuth2
 3. Activate the workflow and open the form URL
 
-## 📸 Screenshots
+## 📸 Screenshots:
 ### Workflow
 ![Workflow](screenshots/workflow_overview.png)
 
-### Input Form
+### Input Form:
 ![Form](screenshots/input_form.png)
 
-### Output Email
+### Output Email:
 ![Email](screenshots/output_email.png)
