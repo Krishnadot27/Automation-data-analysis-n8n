@@ -9,6 +9,7 @@ and emails the full report to the user.
 - Google Gemini (AI analysis)
 - QuickChart.io (chart generation)
 - Gmail (email delivery)
+- hugging face (AI chats)
 
 ## 🚀 How It Works
 1. User submits CSV + email via n8n form
